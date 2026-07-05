@@ -258,7 +258,7 @@
         return;
       }
       var html = '<h3>Все пассажиры (текущие поездки):</h3>';
-      html += '<table><tr><th>№</th><th>Имя</th><th>Баллы</th><th>Поездки</th></tr>';
+      html += '<table><tr><th>№</th><th>Имя</th><th>Часовой пояс МСК</th><th>Поездки</th></tr>';
       players.forEach(function(p, idx) {
         html += '<tr><td>' + (idx + 1) + '</td><td>' + p.name + '</td><td>' + p.score + '</td><td>' + p.trips + '</td></tr>';
       });
