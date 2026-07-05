@@ -250,22 +250,32 @@
       updateSelectedCount();
     }
 
-    // Отображение всех пассажиров (таблица)
-    function showAllPlayers(players) {
-      var container = document.getElementById('contentContainer');
-      if (!players || players.length === 0) {
-        container.innerHTML = '<p>Нет данных.</p>';
-        return;
-      }
-      var html = '<h3>Все пассажиры (текущие поездки):</h3>';
-      html += '<table><tr><th>№</th><th>Имя</th><th>Часовой пояс МСК</th><th>Поездки</th></tr>';
-      players.forEach(function(p, idx) {
-        html += '<tr><td>' + (idx + 1) + '</td><td>' + p.name + '</td><td>' + p.score + '</td><td>' + p.trips + '</td></tr>';
-      });
-      html += '</table>';
-      container.innerHTML = html;
-    }
+   function showAllPlayers(players) {
+  var container = document.getElementById('contentContainer');
+  if (!players || players.length === 0) {
+    container.innerHTML = '<p>Нет данных.</p>';
+    return;
+  }
 
+  // Для отладки: посмотрите в консоли, какие поля есть у первого игрока
+  if (players.length > 0) {
+    console.log('Пример объекта игрока:', players[0]);
+    console.log('Доступные поля:', Object.keys(players[0]));
+  }
+
+  var html = '<h3>Все пассажиры (текущие поездки):</h3>';
+  html += '<table><tr><th>№</th><th>Имя</th><th>Часовой пояс МСК</th><th>Поездки</th></tr>';
+
+  players.forEach(function(p, idx) {
+    // Пытаемся найти поле с часовым поясом по разным возможным именам
+    var timezone = p.timezone || p.tz || p.timeZone || p.time_zone || p.score; // если ничего нет, покажем score как запасной вариант
+    // Если вы точно знаете название поля – замените эту строку на прямое обращение, например p.myTimezoneField
+    html += '<tr><td>' + (idx + 1) + '</td><td>' + p.name + '</td><td>' + timezone + '</td><td>' + p.trips + '</td></tr>';
+  });
+
+  html += '</table>';
+  container.innerHTML = html;
+}
     // Добавление пассажира вручную (+0.5)
     function addManualPlayer() {
       var input = document.getElementById('manualNameInput');
