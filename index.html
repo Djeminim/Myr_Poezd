@@ -17,23 +17,22 @@
       .candidate-row input[type="checkbox"] { width: 18px; height: 18px; }
       #status { margin-top: 10px; font-weight: bold; color: #333; }
       .hidden { display: none; }
-      .manual-add { margin: 10px 0; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-      .manual-add input { padding: 6px; font-size: 14px; }
-      .manual-list { margin-top: 10px; background: #f0f0f0; padding: 10px; border-radius: 4px; }
-      .manual-item { display: flex; align-items: center; justify-content: space-between; padding: 5px 8px; border-bottom: 1px solid #ddd; }
-      .manual-item:last-child { border-bottom: none; }
-      .manual-item .info { font-size: 14px; }
-      .manual-item .remove-btn { background: #e74c3c; color: white; border: none; border-radius: 50%; width: 22px; height: 22px; font-size: 16px; line-height: 22px; text-align: center; cursor: pointer; padding: 0; margin-left: 10px; transition: 0.2s; }
-      .manual-item .remove-btn:hover { background: #c0392b; }
+      .manual-add, .penalty-add { margin: 10px 0; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+      .manual-add input, .penalty-add input { padding: 6px; font-size: 14px; }
+      .manual-list, .penalty-list { margin-top: 10px; background: #f0f0f0; padding: 10px; border-radius: 4px; }
+      .manual-item, .penalty-item { display: flex; align-items: center; justify-content: space-between; padding: 5px 8px; border-bottom: 1px solid #ddd; }
+      .manual-item:last-child, .penalty-item:last-child { border-bottom: none; }
+      .manual-item .info, .penalty-item .info { font-size: 14px; }
+      .manual-item .remove-btn, .penalty-item .remove-btn { background: #e74c3c; color: white; border: none; border-radius: 50%; width: 22px; height: 22px; font-size: 16px; line-height: 22px; text-align: center; cursor: pointer; padding: 0; margin-left: 10px; transition: 0.2s; }
+      .manual-item .remove-btn:hover, .penalty-item .remove-btn:hover { background: #c0392b; }
       .error { color: red; }
       .success { color: green; }
       .number { font-weight: bold; margin-right: 8px; min-width: 30px; display: inline-block; }
-      
-      /* Стили для режима инлайн-редактирования */
       .edit-input { width: 90%; padding: 4px; font-size: 14px; box-sizing: border-box; }
       .btn-edit { background: #3498db; color: white; border: none; border-radius: 4px; padding: 4px 8px; }
       .btn-save { background: #2ecc71; color: white; border: none; border-radius: 4px; padding: 4px 8px; }
       .btn-cancel { background: #95a5a6; color: white; border: none; border-radius: 4px; padding: 4px 8px; }
+      .history-date { font-weight: bold; margin-top: 10px; }
     </style>
   </head>
   <body>
@@ -42,21 +41,35 @@
     <div class="mode-selector">
       <label><input type="radio" name="mode" value="trip" checked onchange="onModeChange()"> Поезд</label>
       <label><input type="radio" name="mode" value="passengers" onchange="onModeChange()"> Пассажиры</label>
+      <label><input type="radio" name="mode" value="history" onchange="onModeChange()"> История</label>
       <button onclick="loadData()">Показать</button>
     </div>
 
     <div id="contentContainer"></div>
 
-    <div id="manualAddContainer" class="hidden">
+    <!-- Блок для режима "Поезд" -->
+    <div id="tripControls" class="hidden">
+      <!-- Ручное добавление (0.5) -->
       <div class="manual-add">
-        <input type="text" id="manualNameInput" placeholder="Введите имя игрока">
+        <input type="text" id="manualNameInput" placeholder="Введите имя игрока (+0.5)">
         <button onclick="addManualPlayer()">Добавить пассажира</button>
       </div>
       <div id="manualListDisplay" class="manual-list hidden">
-        <strong>Добавленные вручную (будут получать +0.5 поездки):</strong>
+        <strong>Добавленные вручную (+0.5):</strong>
         <div id="manualItems"></div>
       </div>
       <div id="manualStatus"></div>
+
+      <!-- Штрафники (+2) -->
+      <div class="penalty-add">
+        <input type="text" id="penaltyNameInput" placeholder="Введите имя штрафника (+2)">
+        <button onclick="addPenaltyPlayer()">Добавить штрафника</button>
+      </div>
+      <div id="penaltyListDisplay" class="penalty-list hidden">
+        <strong>Штрафники (+2):</strong>
+        <div id="penaltyItems"></div>
+      </div>
+      <div id="penaltyStatus"></div>
     </div>
 
     <div id="status"></div>
@@ -69,12 +82,12 @@
       // ==========================================
       // 1. НАСТРОЙКИ И ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ
       // ==========================================
-      // ВСТАВЬТЕ СВОЮ ССЫЛКУ НА ВЕБ-ПРИЛОЖЕНИЕ:
-      var WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwPio18FUsU_u7m_PqE4Fhikg19btthTJG4MyUVHxpjRJ4_7LYk0CWF0jRrv0IKA2fE/exec';
+      var WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwlnweZConsGOLWAXGW7vyMnmH2jVuy40ECswsZkDbumCiVhRvVsgjAKFthv-5DfLpW/exec';
 
       var currentCandidates = [];
       var allPlayers = [];
       var manuallyAdded = [];
+      var penaltyAdded = [];
       var currentMode = 'trip';
 
       // ==========================================
@@ -91,33 +104,37 @@
         document.getElementById('contentContainer').innerHTML = '';
         document.getElementById('status').innerHTML = '';
         document.getElementById('confirmBtnContainer').classList.add('hidden');
-        document.getElementById('manualAddContainer').classList.add('hidden');
+        document.getElementById('tripControls').classList.add('hidden');
         manuallyAdded = [];
+        penaltyAdded = [];
         document.getElementById('manualListDisplay').classList.add('hidden');
         document.getElementById('manualItems').innerHTML = '';
         document.getElementById('manualStatus').innerHTML = '';
+        document.getElementById('penaltyListDisplay').classList.add('hidden');
+        document.getElementById('penaltyItems').innerHTML = '';
+        document.getElementById('penaltyStatus').innerHTML = '';
       }
 
       // ==========================================
-      // 3. ЗАГРУЗКА ДАННЫХ С СЕРВЕРА
+      // 3. ЗАГРУЗКА ДАННЫХ
       // ==========================================
       function loadData() {
         var status = document.getElementById('status');
         status.innerHTML = 'Загрузка...';
         var container = document.getElementById('contentContainer');
         var confirmContainer = document.getElementById('confirmBtnContainer');
-        var manualContainer = document.getElementById('manualAddContainer');
+        var tripControls = document.getElementById('tripControls');
 
         if (currentMode === 'trip') {
           // Режим "Поезд"
+          tripControls.classList.remove('hidden');
           fetch(WEB_APP_URL + '?action=getCandidates')
             .then(res => res.json())
             .then(function(candidates) {
               currentCandidates = candidates;
               showCandidates(candidates);
-              status.innerHTML = 'Отметьте, кто едет (получат +1), или добавьте вручную (+0.5).';
+              status.innerHTML = 'Отметьте, кто едет (+1), добавьте вручную (+0.5) или штрафника (+2).';
               confirmContainer.classList.remove('hidden');
-              manualContainer.classList.remove('hidden');
               updateSelectedCount();
             })
             .catch(function(err) {
@@ -131,25 +148,39 @@
             })
             .catch(err => console.error(err));
 
-        } else {
+        } else if (currentMode === 'passengers') {
           // Режим "Пассажиры"
+          tripControls.classList.add('hidden');
           fetch(WEB_APP_URL + '?action=getAllPlayers')
             .then(res => res.json())
             .then(function(players) {
-              allPlayers = players; // Сохраняем для редактирования
+              allPlayers = players;
               showAllPlayers(players);
               status.innerHTML = 'Список всех пассажиров. Вы можете отредактировать любого игрока прямо в таблице.';
               confirmContainer.classList.add('hidden');
-              manualContainer.classList.add('hidden');
             })
             .catch(function(err) {
               status.innerHTML = 'Ошибка загрузки пассажиров: ' + err.message;
+            });
+
+        } else if (currentMode === 'history') {
+          // Режим "История"
+          tripControls.classList.add('hidden');
+          confirmContainer.classList.add('hidden');
+          fetch(WEB_APP_URL + '?action=getHistory')
+            .then(res => res.json())
+            .then(function(history) {
+              showHistory(history);
+              status.innerHTML = 'История поездок.';
+            })
+            .catch(function(err) {
+              status.innerHTML = 'Ошибка загрузки истории: ' + err.message;
             });
         }
       }
 
       // ==========================================
-      // 4. ОТОБРАЖЕНИЕ КАНДИДАТОВ (режим "Поезд")
+      // 4. ОТОБРАЖЕНИЕ КАНДИДАТОВ
       // ==========================================
       function showCandidates(candidates) {
         var container = document.getElementById('contentContainer');
@@ -174,7 +205,7 @@
       }
 
       // ==========================================
-      // 5. ОТОБРАЖЕНИЕ ВСЕХ ПАССАЖИРОВ (таблица с редактированием)
+      // 5. ОТОБРАЖЕНИЕ ВСЕХ ПАССАЖИРОВ (с редактированием)
       // ==========================================
       function showAllPlayers(players) {
         var container = document.getElementById('contentContainer');
@@ -186,7 +217,6 @@
         html += '<table><tr><th>№</th><th>Имя</th><th>Часовой пояс МСК</th><th>Поездки</th><th>Действие</th></tr>';
         
         players.forEach(function(p, idx) {
-          // Используем row_idx, который должен передаваться с сервера (индекс строки в таблице)
           var rowId = p.row_idx !== undefined ? p.row_idx : idx;
           html += '<tr id="row_' + rowId + '">';
           html += '<td>' + (idx + 1) + '</td>';
@@ -201,9 +231,8 @@
       }
 
       // ==========================================
-      // 6. РЕДАКТИРОВАНИЕ СТРОКИ ТАБЛИЦЫ
+      // 6. РЕДАКТИРОВАНИЕ (остаётся без изменений)
       // ==========================================
-      // Начало редактирования – заменяем текст на поля ввода
       function startEdit(rowIdx) {
         var tr = document.getElementById('row_' + rowIdx);
         var nameCell = tr.querySelector('.p-name');
@@ -211,7 +240,6 @@
         var tripsCell = tr.querySelector('.p-trips');
         var actionCell = tr.querySelectorAll('td')[4];
 
-        // Запоминаем текущие значения (для отмены)
         var currentName = nameCell.innerText;
         var currentScore = scoreCell.innerText;
         var currentTrips = tripsCell.innerText;
@@ -225,7 +253,6 @@
           '<button class="btn-cancel" onclick="cancelEdit(' + rowIdx + ', \'' + currentName + '\', \'' + currentScore + '\', ' + currentTrips + ')">Отмена</button>';
       }
 
-      // Отмена редактирования – возвращаем исходные данные
       function cancelEdit(rowIdx, name, score, trips) {
         var tr = document.getElementById('row_' + rowIdx);
         tr.querySelector('.p-name').innerText = name;
@@ -234,7 +261,6 @@
         tr.querySelectorAll('td')[4].innerHTML = '<button class="btn-edit" onclick="startEdit(' + rowIdx + ')">Редактировать</button>';
       }
 
-      // Сохранение изменений – отправка на сервер
       function saveEdit(rowIdx) {
         var tr = document.getElementById('row_' + rowIdx);
         var newName = tr.querySelector('.val-name').value.trim();
@@ -262,7 +288,6 @@
         })
         .then(function() {
           status.innerHTML = 'Изменения для "' + newName + '" успешно сохранены в Excel!';
-          // Возвращаем строку в обычный текстовый вид
           tr.querySelector('.p-name').innerText = newName;
           tr.querySelector('.p-score').innerText = newScore;
           tr.querySelector('.p-trips').innerText = newTrips;
@@ -274,7 +299,7 @@
       }
 
       // ==========================================
-      // 7. РУЧНОЕ ДОБАВЛЕНИЕ ПАССАЖИРА (+0.5)
+      // 7. ДОБАВЛЕНИЕ РУЧНОГО ПАССАЖИРА (+0.5)
       // ==========================================
       function addManualPlayer() {
         var input = document.getElementById('manualNameInput');
@@ -286,26 +311,23 @@
           return;
         }
 
-        // Проверяем, существует ли игрок
         var exists = allPlayers.some(function(p) {
           return p.name.toLowerCase() === name.toLowerCase();
         });
         if (!exists) {
-          status.innerHTML = '<span class="error">Игрок с именем "' + name + '" не найден в общем списке. Заведите его в эксельке.</span>';
+          status.innerHTML = '<span class="error">Игрок с именем "' + name + '" не найден в общем списке.</span>';
           return;
         }
 
-        // Не добавлен ли уже вручную
-        if (manuallyAdded.indexOf(name) !== -1) {
-          status.innerHTML = '<span class="error">Игрок "' + name + '" уже добавлен вручную.</span>';
+        if (manuallyAdded.indexOf(name) !== -1 || penaltyAdded.indexOf(name) !== -1) {
+          status.innerHTML = '<span class="error">Игрок уже добавлен вручную или как штрафник.</span>';
           return;
         }
 
-        // Проверяем, не отмечен ли он галочкой (+1)
         var checkboxes = document.querySelectorAll('#contentContainer input[type="checkbox"]');
         for (var i = 0; i < checkboxes.length; i++) {
           if (checkboxes[i].value.toLowerCase() === name.toLowerCase() && checkboxes[i].checked) {
-            status.innerHTML = '<span class="error">Игрок уже отмечен галочкой в списке выше (+1). Нельзя добавить его вручную на (+0.5).</span>';
+            status.innerHTML = '<span class="error">Игрок уже отмечен галочкой (+1).</span>';
             return;
           }
         }
@@ -316,9 +338,6 @@
         renderManualList();
       }
 
-      // ==========================================
-      // 8. ОТОБРАЖЕНИЕ СПИСКА РУЧНО ДОБАВЛЕННЫХ
-      // ==========================================
       function renderManualList() {
         var container = document.getElementById('manualItems');
         var displayBlock = document.getElementById('manualListDisplay');
@@ -343,16 +362,100 @@
       }
 
       // ==========================================
-      // 9. ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+      // 8. ДОБАВЛЕНИЕ ШТРАФНИКА (+2)
+      // ==========================================
+      function addPenaltyPlayer() {
+        var input = document.getElementById('penaltyNameInput');
+        var name = input.value.trim();
+        var status = document.getElementById('penaltyStatus');
+
+        if (name === '') {
+          status.innerHTML = '<span class="error">Введите имя.</span>';
+          return;
+        }
+
+        var exists = allPlayers.some(function(p) {
+          return p.name.toLowerCase() === name.toLowerCase();
+        });
+        if (!exists) {
+          status.innerHTML = '<span class="error">Игрок с именем "' + name + '" не найден в общем списке.</span>';
+          return;
+        }
+
+        if (penaltyAdded.indexOf(name) !== -1 || manuallyAdded.indexOf(name) !== -1) {
+          status.innerHTML = '<span class="error">Игрок уже добавлен как штрафник или вручную.</span>';
+          return;
+        }
+
+        var checkboxes = document.querySelectorAll('#contentContainer input[type="checkbox"]');
+        for (var i = 0; i < checkboxes.length; i++) {
+          if (checkboxes[i].value.toLowerCase() === name.toLowerCase() && checkboxes[i].checked) {
+            status.innerHTML = '<span class="error">Игрок уже отмечен галочкой (+1).</span>';
+            return;
+          }
+        }
+
+        penaltyAdded.push(name);
+        input.value = '';
+        status.innerHTML = '';
+        renderPenaltyList();
+      }
+
+      function renderPenaltyList() {
+        var container = document.getElementById('penaltyItems');
+        var displayBlock = document.getElementById('penaltyListDisplay');
+        if (penaltyAdded.length === 0) {
+          displayBlock.classList.add('hidden');
+          return;
+        }
+        displayBlock.classList.remove('hidden');
+        var html = '';
+        penaltyAdded.forEach(function(name, index) {
+          html += '<div class="penalty-item">' +
+                  '<span class="info">' + name + ' (+2)</span>' +
+                  '<button class="remove-btn" onclick="removePenaltyPlayer(' + index + ')">&times;</button>' +
+                  '</div>';
+        });
+        container.innerHTML = html;
+      }
+
+      function removePenaltyPlayer(index) {
+        penaltyAdded.splice(index, 1);
+        renderPenaltyList();
+      }
+
+      // ==========================================
+      // 9. ОТОБРАЖЕНИЕ ИСТОРИИ
+      // ==========================================
+      function showHistory(history) {
+        var container = document.getElementById('contentContainer');
+        if (!history || history.length === 0) {
+          container.innerHTML = '<p>История пока пуста.</p>';
+          return;
+        }
+
+        var html = '<h3>История поездок</h3>';
+        html += '<table><tr><th>Дата</th><th>Игрок</th><th>Тип</th><th>Поездки</th></tr>';
+        history.forEach(function(entry) {
+          html += '<tr>';
+          html += '<td>' + entry.date + '</td>';
+          html += '<td>' + entry.name + '</td>';
+          html += '<td>' + entry.type + '</td>';
+          html += '<td>' + entry.trips + '</td>';
+          html += '</tr>';
+        });
+        html += '</table>';
+        container.innerHTML = html;
+      }
+
+      // ==========================================
+      // 10. ОБНОВЛЕНИЕ СЧЁТЧИКА И ПОДТВЕРЖДЕНИЕ
       // ==========================================
       function updateSelectedCount() {
         var checkedBoxes = document.querySelectorAll('#contentContainer input[type="checkbox"]:checked');
         document.getElementById('selectedCountDisplay').innerText = 'Выбрано основных: ' + checkedBoxes.length;
       }
 
-      // ==========================================
-      // 10. ПОДТВЕРЖДЕНИЕ ПОЕЗДОК (отправка на сервер)
-      // ==========================================
       function confirmTrips() {
         var status = document.getElementById('status');
         var checkedBoxes = document.querySelectorAll('#contentContainer input[type="checkbox"]:checked');
@@ -361,7 +464,7 @@
           checkboxNames.push(cb.value);
         });
 
-        if (checkboxNames.length === 0 && manuallyAdded.length === 0) {
+        if (checkboxNames.length === 0 && manuallyAdded.length === 0 && penaltyAdded.length === 0) {
           status.innerHTML = 'Никто не выбран для поездки!';
           return;
         }
@@ -375,16 +478,19 @@
           body: JSON.stringify({
             action: 'updateTrips',
             checkboxNames: checkboxNames,
-            manualNames: manuallyAdded
+            manualNames: manuallyAdded,
+            penaltyNames: penaltyAdded
           })
         })
         .then(function() {
           status.innerHTML = 'Поездки успешно зафиксированы в таблице!';
           document.getElementById('contentContainer').innerHTML = '';
           document.getElementById('confirmBtnContainer').classList.add('hidden');
-          document.getElementById('manualAddContainer').classList.add('hidden');
+          document.getElementById('tripControls').classList.add('hidden');
           manuallyAdded = [];
+          penaltyAdded = [];
           renderManualList();
+          renderPenaltyList();
         })
         .catch(function(err) {
           status.innerHTML = 'Ошибка сохранения: ' + err.message;
