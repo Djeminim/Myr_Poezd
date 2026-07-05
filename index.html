@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Управление поездками</title>
+  <base target="_top">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      max-width: 800px;
+      margin: auto;
+    }
+    .mode-selector {
+      margin: 15px 0;
+    }
+    .mode-selector label {
+      margin-right: 20px;
+      font-weight: bold;
+    }
+    button {
+      padding: 8px 16px;
+      font-size: 14px;
+      margin: 5px;
+      cursor: pointer;
+    }
+    table {
+      border-collapse: collapse;
+      margin-top: 15px;
+      width: 100%;
+    }
+    td, th {
+      border: 1px solid #ccc;
+      padding: 6px;
+      text-align: left;
+    }
+    .candidate-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 4px 0;
+    }
+    .candidate-row input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+    }
+    #status {
+      margin-top: 10px;
+      font-weight: bold;
+      color: #333;
+    }
+    .hidden {
+      display: none;
+    }
+    .manual-add {
+      margin: 10px 0;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .manual-add input {
+      padding: 6px;
+      font-size: 14px;
+    }
+    .manual-list {
+      margin-top: 10px;
+      background: #f0f0f0;
+      padding: 10px;
+      border-radius: 4px;
+    }
+    .manual-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 5px 8px;
+      border-bottom: 1px solid #ddd;
+    }
+    .manual-item:last-child {
+      border-bottom: none;
+    }
+    .manual-item .info {
+      font-size: 14px;
+    }
+    .manual-item .remove-btn {
+      background: #e74c3c;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 22px;
+      height: 22px;
+      font-size: 16px;
+      line-height: 22px;
+      text-align: center;
+      cursor: pointer;
+      padding: 0;
+      margin-left: 10px;
+      transition: 0.2s;
+    }
+    .manual-item .remove-btn:hover {
+      background: #c0392b;
+    }
+    .error {
+      color: red;
+    }
+    .success {
+      color: green;
+    }
+    .number {
+      font-weight: bold;
+      margin-right: 8px;
+      min-width: 30px;
+      display: inline-block;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Управление поездками</h1>
+
+  <div class="mode-selector">
+    <label>
+      <input type="radio" name="mode" value="trip" checked onchange="onModeChange()"> Поезд
+    </label>
+    <label>
+      <input type="radio" name="mode" value="passengers" onchange="onModeChange()"> Пассажиры
+    </label>
+    <button onclick="loadData()">Показать</button>
+  </div>
+
+  <div id="contentContainer"></div>
+
+  <div id="manualAddContainer" class="hidden">
+    <div class="manual-add">
+      <input type="text" id="manualNameInput" placeholder="Введите имя игрока">
+      <button onclick="addManualPlayer()">Добавить пассажира</button>
+    </div>
+    <div id="manualListDisplay" class="manual-list hidden">
+      <strong>Добавленные вручную (будут получать +0.5 поездки):</strong>
+      <div id="manualItems"></div>
+    </div>
+    <div id="manualStatus"></div>
+  </div>
+
+  <div id="status"></div>
+
+  <div id="confirmBtnContainer" class="hidden">
+    <button onclick="confirmTrips()">Подтвердить поездки</button>
+    <span id="selectedCountDisplay" style="margin-left: 10px;"></span>
+  </div>
+
+  <script>
+    // СЮДА ВСТАВЬТЕ ВАШУ ССЫЛКУ ВНУТРЬ ОДИНАРНЫХ КАВЫЧЕК:
+    var WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzKhV3FN3BhcZ00AL0O2mgw7VzyfmgWTGdGmuy0PnAIaGX_oOeG9Fx0GJh5XJ8dML0v/exec';
+
+    var currentCandidates = [];
+    var allPlayers = [];
+    var manuallyAdded = [];
+    var currentMode = 'trip';
+
+    // Переключение режима (поезд / пассажиры)
+    function onModeChange() {
+      var radios = document.getElementsByName('mode');
+      for (var i = 0; i < radios.length; i++) {
+        if (radios[i].checked) {
+          currentMode = radios[i].value;
+          break;
+        }
+      }
+      document.getElementById('contentContainer').innerHTML = '';
+      document.getElementById('status').innerHTML = '';
+      document.getElementById('confirmBtnContainer').classList.add('hidden');
+      document.getElementById('manualAddContainer').classList.add('hidden');
+      manuallyAdded = [];
+      document.getElementById('manualListDisplay').classList.add('hidden');
+      document.getElementById('manualItems').innerHTML = '';
+      document.getElementById('manualStatus').innerHTML = '';
+    }
+
+    // Основная загрузка данных в зависимости от режима
+    function loadData() {
+      var status = document.getElementById('status');
+      status.innerHTML = 'Загрузка...';
+      var container = document.getElementById('contentContainer');
+      var confirmContainer = document.getElementById('confirmBtnContainer');
+      var manualContainer = document.getElementById('manualAddContainer');
+
+      if (currentMode === 'trip') {
+        // Получаем кандидатов для поездки
+        fetch(WEB_APP_URL + '?action=getCandidates')
+          .then(function(res) { return res.json(); })
+          .then(function(candidates) {
+            currentCandidates = candidates;
+            showCandidates(candidates);
+            status.innerHTML = 'Отметьте, кто едет (получат +1), или добавьте вручную (+0.5).';
+            confirmContainer.classList.remove('hidden');
+            manualContainer.classList.remove('hidden');
+            updateSelectedCount();
+          })
+          .catch(function(err) {
+            status.innerHTML = 'Ошибка загрузки кандидатов: ' + err.message;
+          });
+
+        // Загружаем всех игроков для валидации ручного ввода
+        fetch(WEB_APP_URL + '?action=getAllPlayers')
+          .then(function(res) { return res.json(); })
+          .then(function(players) {
+            allPlayers = players;
+          })
+          .catch(function(err) {
+            console.error(err);
+          });
+      } else {
+        // Режим "Пассажиры" – показываем всех игроков
+        fetch(WEB_APP_URL + '?action=getAllPlayers')
+          .then(function(res) { return res.json(); })
+          .then(function(players) {
+            showAllPlayers(players);
+            status.innerHTML = 'Список всех пассажиров.';
+            confirmContainer.classList.add('hidden');
+            manualContainer.classList.add('hidden');
+          })
+          .catch(function(err) {
+            status.innerHTML = 'Ошибка загрузки пассажиров: ' + err.message;
+          });
+      }
+    }
+
+    // Отображение списка кандидатов с чекбоксами
+    function showCandidates(candidates) {
+      var container = document.getElementById('contentContainer');
+      if (!candidates || candidates.length === 0) {
+        container.innerHTML = '<p>Нет игроков для отбора.</p>';
+        return;
+      }
+
+      var html = '<h3>Выберите, кто поедет (галочка – едет, +1 поездка):</h3>';
+      html += '<div>';
+      candidates.forEach(function(player, index) {
+        html += '<div class="candidate-row">';
+        html += '<span class="number">' + (index + 1) + '.</span>';
+        html += '<input type="checkbox" id="cb_' + index + '" value="' + player.name + '" checked onchange="updateSelectedCount()"> ';
+        html += '<label style="cursor:pointer;" for="cb_' + index + '">' + player.name + ' (поездок: ' + player.trips + ')</label>';
+        html += '</div>';
+      });
+      html += '</div>';
+      container.innerHTML = html;
+
+      updateSelectedCount();
+    }
+
+    // Отображение всех пассажиров (таблица)
+    function showAllPlayers(players) {
+      var container = document.getElementById('contentContainer');
+      if (!players || players.length === 0) {
+        container.innerHTML = '<p>Нет данных.</p>';
+        return;
+      }
+      var html = '<h3>Все пассажиры (текущие поездки):</h3>';
+      html += '<table><tr><th>№</th><th>Имя</th><th>Баллы</th><th>Поездки</th></tr>';
+      players.forEach(function(p, idx) {
+        html += '<tr><td>' + (idx + 1) + '</td><td>' + p.name + '</td><td>' + p.score + '</td><td>' + p.trips + '</td></tr>';
+      });
+      html += '</table>';
+      container.innerHTML = html;
+    }
+
+    // Добавление пассажира вручную (+0.5)
+    function addManualPlayer() {
+      var input = document.getElementById('manualNameInput');
+      var name = input.value.trim();
+      var status = document.getElementById('manualStatus');
+
+      if (name === '') {
+        status.innerHTML = '<span class="error">Введите имя.</span>';
+        return;
+      }
+
+      // Проверяем, существует ли игрок в общем списке
+      var exists = allPlayers.some(function(p) {
+        return p.name.toLowerCase() === name.toLowerCase();
+      });
+      if (!exists) {
+        status.innerHTML = '<span class="error">Игрок с именем "' + name + '" не найден в общем списке. Заведите его в эксельке.</span>';
+        return;
+      }
+
+      // Проверяем, не добавлен ли уже вручную
+      if (manuallyAdded.indexOf(name) !== -1) {
+        status.innerHTML = '<span class="error">Игрок "' + name + '" уже добавлен вручную.</span>';
+        return;
+      }
+
+      // Проверяем, не отмечен ли он уже галочкой в основном списке
+      var checkboxes = document.querySelectorAll('#contentContainer input[type="checkbox"]');
+      for (var i = 0; i < checkboxes.length; i++) {
+        if (checkboxes[i].value.toLowerCase() === name.toLowerCase() && checkboxes[i].checked) {
+          status.innerHTML = '<span class="error">Игрок уже отмечен галочкой в списке выше (+1). Нельзя добавить его вручную на (+0.5).</span>';
+          return;
+        }
+      }
+
+      manuallyAdded.push(name);
+      input.value = '';
+      status.innerHTML = '';
+      renderManualList();
+    }
+
+    // Отображение списка вручную добавленных игроков
+    function renderManualList() {
+      var container = document.getElementById('manualItems');
+      var displayBlock = document.getElementById('manualListDisplay');
+      if (manuallyAdded.length === 0) {
+        displayBlock.classList.add('hidden');
+        return;
+      }
+      displayBlock.classList.remove('hidden');
+      var html = '';
+      manuallyAdded.forEach(function(name, index) {
+        html += '<div class="manual-item">' +
+          '<span class="info">' + name + ' (+0.5)</span>' +
+          '<button class="remove-btn" onclick="removeManualPlayer(' + index + ')">&times;</button>' +
+          '</div>';
+      });
+      container.innerHTML = html;
+    }
+
+    // Удаление игрока из ручного списка
+    function removeManualPlayer(index) {
+      manuallyAdded.splice(index, 1);
+      renderManualList();
+    }
+
+    // Обновление счётчика выбранных основных пассажиров
+    function updateSelectedCount() {
+      var checkedBoxes = document.querySelectorAll('#contentContainer input[type="checkbox"]:checked');
+      document.getElementById('selectedCountDisplay').innerText = 'Выбрано основных: ' + checkedBoxes.length;
+    }
+
+    // Подтверждение и отправка данных
+    function confirmTrips() {
+      var status = document.getElementById('status');
+      var checkedBoxes = document.querySelectorAll('#contentContainer input[type="checkbox"]:checked');
+      var checkboxNames = [];
+      checkedBoxes.forEach(function(cb) {
+        checkboxNames.push(cb.value);
+      });
+
+      if (checkboxNames.length === 0 && manuallyAdded.length === 0) {
+        status.innerHTML = 'Никто не выбран для поездки!';
+        return;
+      }
+
+      status.innerHTML = 'Сохранение данных в таблицу...';
+
+      fetch(WEB_APP_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'updateTrips',
+          checkboxNames: checkboxNames,
+          manualNames: manuallyAdded
+        })
+      })
+        .then(function() {
+          status.innerHTML = 'Поездки успешно зафиксированы в таблице!';
+          document.getElementById('contentContainer').innerHTML = '';
+          document.getElementById('confirmBtnContainer').classList.add('hidden');
+          document.getElementById('manualAddContainer').classList.add('hidden');
+          manuallyAdded = [];
+          renderManualList();
+        })
+        .catch(function(err) {
+          status.innerHTML = 'Ошибка сохранения: ' + err.message;
+        });
+    }
+  </script>
+
+</body>
+</html>
