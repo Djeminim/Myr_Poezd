@@ -151,7 +151,7 @@
   </div>
 
   <script>
-    // СЮДА ВСТАВЬТЕ ВАШУ ССЫЛКУ ВНУТРЬ ОДИНАРНЫХ КАВЫЧЕК:
+    // ВАША ССЫЛКА НА ВЕБ-ПРИЛОЖЕНИЕ:
     var WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzKhV3FN3BhcZ00AL0O2mgw7VzyfmgWTGdGmuy0PnAIaGX_oOeG9Fx0GJh5XJ8dML0v/exec';
 
     var currentCandidates = [];
@@ -159,7 +159,9 @@
     var manuallyAdded = [];
     var currentMode = 'trip';
 
-    // Переключение режима (поезд / пассажиры)
+    // ------------------------------------------------------------
+    // Переключение режима
+    // ------------------------------------------------------------
     function onModeChange() {
       var radios = document.getElementsByName('mode');
       for (var i = 0; i < radios.length; i++) {
@@ -178,7 +180,9 @@
       document.getElementById('manualStatus').innerHTML = '';
     }
 
-    // Основная загрузка данных в зависимости от режима
+    // ------------------------------------------------------------
+    // Загрузка данных
+    // ------------------------------------------------------------
     function loadData() {
       var status = document.getElementById('status');
       status.innerHTML = 'Загрузка...';
@@ -187,7 +191,7 @@
       var manualContainer = document.getElementById('manualAddContainer');
 
       if (currentMode === 'trip') {
-        // Получаем кандидатов для поездки
+        // Кандидаты
         fetch(WEB_APP_URL + '?action=getCandidates')
           .then(function(res) { return res.json(); })
           .then(function(candidates) {
@@ -202,7 +206,7 @@
             status.innerHTML = 'Ошибка загрузки кандидатов: ' + err.message;
           });
 
-        // Загружаем всех игроков для валидации ручного ввода
+        // Все игроки (для валидации ручного ввода)
         fetch(WEB_APP_URL + '?action=getAllPlayers')
           .then(function(res) { return res.json(); })
           .then(function(players) {
@@ -212,7 +216,7 @@
             console.error(err);
           });
       } else {
-        // Режим "Пассажиры" – показываем всех игроков
+        // Режим "Пассажиры" – показываем всех
         fetch(WEB_APP_URL + '?action=getAllPlayers')
           .then(function(res) { return res.json(); })
           .then(function(players) {
@@ -227,7 +231,9 @@
       }
     }
 
-    // Отображение списка кандидатов с чекбоксами
+    // ------------------------------------------------------------
+    // Отображение кандидатов (с чекбоксами)
+    // ------------------------------------------------------------
     function showCandidates(candidates) {
       var container = document.getElementById('contentContainer');
       if (!candidates || candidates.length === 0) {
@@ -250,33 +256,41 @@
       updateSelectedCount();
     }
 
-   function showAllPlayers(players) {
-  var container = document.getElementById('contentContainer');
-  if (!players || players.length === 0) {
-    container.innerHTML = '<p>Нет данных.</p>';
-    return;
-  }
+    // ------------------------------------------------------------
+    // ОТОБРАЖЕНИЕ ВСЕХ ПАССАЖИРОВ (таблица)
+    // ★★★ ИСПРАВЛЕННАЯ ФУНКЦИЯ ★★★
+    // ------------------------------------------------------------
+    function showAllPlayers(players) {
+      var container = document.getElementById('contentContainer');
+      if (!players || players.length === 0) {
+        container.innerHTML = '<p>Нет данных.</p>';
+        return;
+      }
 
-  // Для отладки: посмотрите в консоли, какие поля есть у первого игрока
-  if (players.length > 0) {
-    console.log('Пример объекта игрока:', players[0]);
-    console.log('Доступные поля:', Object.keys(players[0]));
-  }
+      // Отладка – выводим в консоль структуру первого игрока
+      if (players.length > 0) {
+        console.log('✅ Пример объекта игрока:', players[0]);
+        console.log('✅ Доступные поля:', Object.keys(players[0]));
+        console.log('ℹ️ Если поля "timezone" нет – добавьте его в ответ сервера (см. инструкцию ниже).');
+      }
 
-  var html = '<h3>Все пассажиры (текущие поездки):</h3>';
-  html += '<table><tr><th>№</th><th>Имя</th><th>Часовой пояс МСК</th><th>Поездки</th></tr>';
+      var html = '<h3>Все пассажиры (текущие поездки):</h3>';
+      html += '<table><tr><th>№</th><th>Имя</th><th>Часовой пояс МСК</th><th>Поездки</th></tr>';
 
-  players.forEach(function(p, idx) {
-    // Пытаемся найти поле с часовым поясом по разным возможным именам
-    var timezone = p.timezone || p.tz || p.timeZone || p.time_zone || p.score; // если ничего нет, покажем score как запасной вариант
-    // Если вы точно знаете название поля – замените эту строку на прямое обращение, например p.myTimezoneField
-    html += '<tr><td>' + (idx + 1) + '</td><td>' + p.name + '</td><td>' + timezone + '</td><td>' + p.trips + '</td></tr>';
-  });
+      players.forEach(function(p, idx) {
+        // Ищем поле с часовым поясом по возможным названиям.
+        // Если ни одного нет – показываем прочерк "—".
+        var timezone = p.timezone || p.tz || p.timeZone || p.time_zone || '—';
+        html += '<tr><td>' + (idx + 1) + '</td><td>' + p.name + '</td><td>' + timezone + '</td><td>' + p.trips + '</td></tr>';
+      });
 
-  html += '</table>';
-  container.innerHTML = html;
-}
-    // Добавление пассажира вручную (+0.5)
+      html += '</table>';
+      container.innerHTML = html;
+    }
+
+    // ------------------------------------------------------------
+    // Добавление пассажира вручную
+    // ------------------------------------------------------------
     function addManualPlayer() {
       var input = document.getElementById('manualNameInput');
       var name = input.value.trim();
@@ -287,7 +301,6 @@
         return;
       }
 
-      // Проверяем, существует ли игрок в общем списке
       var exists = allPlayers.some(function(p) {
         return p.name.toLowerCase() === name.toLowerCase();
       });
@@ -296,13 +309,11 @@
         return;
       }
 
-      // Проверяем, не добавлен ли уже вручную
       if (manuallyAdded.indexOf(name) !== -1) {
         status.innerHTML = '<span class="error">Игрок "' + name + '" уже добавлен вручную.</span>';
         return;
       }
 
-      // Проверяем, не отмечен ли он уже галочкой в основном списке
       var checkboxes = document.querySelectorAll('#contentContainer input[type="checkbox"]');
       for (var i = 0; i < checkboxes.length; i++) {
         if (checkboxes[i].value.toLowerCase() === name.toLowerCase() && checkboxes[i].checked) {
@@ -317,7 +328,6 @@
       renderManualList();
     }
 
-    // Отображение списка вручную добавленных игроков
     function renderManualList() {
       var container = document.getElementById('manualItems');
       var displayBlock = document.getElementById('manualListDisplay');
@@ -336,19 +346,19 @@
       container.innerHTML = html;
     }
 
-    // Удаление игрока из ручного списка
     function removeManualPlayer(index) {
       manuallyAdded.splice(index, 1);
       renderManualList();
     }
 
-    // Обновление счётчика выбранных основных пассажиров
+    // ------------------------------------------------------------
+    // Счётчики и подтверждение
+    // ------------------------------------------------------------
     function updateSelectedCount() {
       var checkedBoxes = document.querySelectorAll('#contentContainer input[type="checkbox"]:checked');
       document.getElementById('selectedCountDisplay').innerText = 'Выбрано основных: ' + checkedBoxes.length;
     }
 
-    // Подтверждение и отправка данных
     function confirmTrips() {
       var status = document.getElementById('status');
       var checkedBoxes = document.querySelectorAll('#contentContainer input[type="checkbox"]:checked');
@@ -386,6 +396,46 @@
           status.innerHTML = 'Ошибка сохранения: ' + err.message;
         });
     }
+
+    // ------------------------------------------------------------
+    // ИНСТРУКЦИЯ ПО ДОБАВЛЕНИЮ ПОЛЯ "timezone" НА СЕРВЕРЕ
+    // ------------------------------------------------------------
+    /*
+      Если в таблице всё ещё показываются прочерки "—",
+      значит ваш Google Apps Script не возвращает поле timezone.
+
+      Откройте скрипт (файл .gs) и найдите функцию, которая обрабатывает
+      запрос ?action=getAllPlayers. Обычно она выглядит так:
+
+      function doGet(e) {
+        var action = e.parameter.action;
+        if (action == 'getAllPlayers') {
+          var data = getPlayersData();
+          return ContentService.createTextOutput(JSON.stringify(data))
+                 .setMimeType(ContentService.MimeType.JSON);
+        }
+      }
+
+      function getPlayersData() {
+        var sheet = SpreadsheetApp.getActive().getSheetByName('Лист1');
+        var rows = sheet.getDataRange().getValues();
+        var players = [];
+        for (var i = 1; i < rows.length; i++) {
+          players.push({
+            name: rows[i][0],   // столбец A
+            score: rows[i][1],  // столбец B (баллы) – если не нужен, можете убрать
+            trips: rows[i][2],  // столбец C (поездки)
+            // ★ ДОБАВЬТЕ ЭТУ СТРОКУ ★
+            timezone: rows[i][3] || ''   // столбец D (часовой пояс)
+          });
+        }
+        return players;
+      }
+
+      После изменения сохраните скрипт и переразверните веб-приложение
+      (Развернуть → Новое развертывание).
+      Затем обновите эту страницу – часовые пояса появятся.
+    */
   </script>
 
 </body>
